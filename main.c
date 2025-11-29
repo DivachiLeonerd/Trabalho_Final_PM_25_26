@@ -2,14 +2,14 @@
 #include <string.h>
 
 #define MAX_LINE_LENGTH 173 //SUM of max field width + all the ';' + '\n'
-#define MAX_MEMBER_COUNTER 9
-#define MAX_MEMBER_LENGTH 50
-#define CALLER_ID_LENGTH 14
-#define NAME_LENGTH 50
-#define DATE_LENGTH 10
-#define TIMESTAMP_LENGTH 11
-#define REGION_CD_LENGTH 1
-#define MAX_CDR_COUNT 1000000
+#define MAX_MEMBER_COUNTER 8 + 1
+#define MAX_MEMBER_LENGTH 50 + 1
+#define CALLER_ID_LENGTH 14 + 1
+#define NAME_LENGTH 50 + 1
+#define DATE_LENGTH 10 +1
+#define TIMESTAMP_LENGTH 11 + 1
+#define REGION_CD_LENGTH 1 + 1
+#define MAX_CDR_COUNT 25 //1000000
 #define FILENAME "./db.txt"
 
 
@@ -61,6 +61,25 @@ void print_CDR(CDR *call_record)
         return ;
 }
 
+void l_trim(const char *string, char *trimmed)
+{
+        int     i;
+        int     j;
+
+        j = 0;
+        i = 0;
+        while (string[i] <= ' ' && string[i] > 0)
+        {
+                i++;
+        }
+        while (string[i])
+        {
+                trimmed[j++] = string[i++];
+        }
+        trimmed[j] = '\0';
+        return ;
+}
+
 void read_next_member(char *member, char *line)
 {
         short int               i;
@@ -81,6 +100,7 @@ void read_next_member(char *member, char *line)
                 if (line[j] == '\n' || line[j] == '\0' || line[j] == ';')
                 {
                         j++;
+                        member[i] = '\0';
                         return ;
                 }
                 member[i++] = line[j++];
@@ -102,7 +122,7 @@ CDR	*read_call_record(CDR *new_CDR, char *line)//reads and initializes a call_re
                 // printf("read_call_record(): %s\nmember counter:%d\n", member, member_counter);
 		switch (member_counter)
 		{
-			case 0:strncpy(new_CDR->caller_id, member, CALLER_ID_LENGTH); break;
+			case 0:strncpy(new_CDR->caller_id, member, CALLER_ID_LENGTH);break;
 			case 1:strncpy(new_CDR->caller_name, member, NAME_LENGTH); break;
 			case 2:strncpy(new_CDR->client_id, member, CALLER_ID_LENGTH); break;
 			case 3:strncpy(new_CDR->client_name, member, NAME_LENGTH); break;
@@ -118,11 +138,6 @@ CDR	*read_call_record(CDR *new_CDR, char *line)//reads and initializes a call_re
 	return new_CDR;
 }
 
-void write_call_record(CDR *DB, FILE *output_stream)
-{
-	
-}
-
 void initialize_DB(CDR *DB)
 {
 	char	line[MAX_LINE_LENGTH];
@@ -134,6 +149,11 @@ void initialize_DB(CDR *DB)
         i = 0;
 
         f_stream = fopen(FILENAME, "r");
+        if (f_stream == -1)
+        {
+                printf("falhei a abrir o Documento\n");
+                return ;
+        }
         do
         {
                 result = fgets(line, MAX_LINE_LENGTH, f_stream);
@@ -154,6 +174,32 @@ void initialize_DB(CDR *DB)
         return ;
 }
 
+void search_exact_caller_id(CDR *DB, const char *arg_id)
+{
+        int     i;
+        int     result;
+        int     caller_counter;
+
+        caller_counter = 0;
+        i = 0;
+        result = -1;
+
+        while (i < MAX_CDR_COUNT)
+        {
+                result = memcmp(arg_id, DB[i].caller_id, CALLER_ID_LENGTH);
+                if (result == 0)
+                {
+                        print_CDR(&(DB[i]));
+                        printf("\n");
+                        caller_counter++;
+                }
+                i++;
+        }
+        printf("Total number of registers with that ID: %d\n", caller_counter);
+        return ;
+}
+
+
 main_loop(CDR *DB)
 {
 	
@@ -167,11 +213,10 @@ int main(int argc, char **argv)
         int             i;
 
         i = 0;
-        file_stream = fopen(FILENAME, "r");
-        if (file_stream == NULL)
-                return 1;
         printf("hello World\n");
         initialize_DB(DB);
+        printf("\n\n\nsearch\n\n\n");
+        search_exact_caller_id(DB, "     918057328");
         // for (int i = 0; i < 25; i++)
         // {
         //         read_call_record(&(DB[i]), buff);
