@@ -229,9 +229,19 @@ void print_help_text()
         return ;
 }
 
+void print_menu()
+{
+        printf("\n\n\t\t\t\t****************Menu****************\n\n");
+        printf("\t\t\t\t1 - Search Calls made from chosen number\n");
+        printf("\t\t\t\t2 - Search Calls made to chosen number\n");
+        printf("\t\t\t\t3 - Sum of call-time (caller)\n");
+        printf("\t\t\t\te - exit\n\n");
+        printf("\t\t\t\t************************************\n\n");
+}
+
 void main_loop(CDR *DB, char mode, char *arg_id)
 {
-        
+        print_menu();
         return ;
 }
 
@@ -241,7 +251,6 @@ int main(int argc, char **argv)
         char            program_mode;
 
         program_mode = -1;
-        printf("hello World\n");
         program_mode = define_program_mode(argv);
         if (program_mode == INVALID_INPUT)
                 return INVALID_INPUT;
@@ -255,7 +264,8 @@ int main(int argc, char **argv)
         {
                 search_exact_caller_id(DB, argv[1]);
         }
-        //main_loop(DB, program_mode, argv[1]);
+
+        main_loop(DB, program_mode, argv[1]);
         return 0;
 }
 
