@@ -11,7 +11,10 @@
 #define REGION_CD_LENGTH 1 + 1
 #define MAX_CDR_COUNT 25 //1000000
 #define FILENAME "./db.txt"
-
+#define HELP_TEXT_MODE 2
+#define DEFAULT_MODE 0
+#define CALLER_ID_SEARCH_MODE 1
+#define INVALID_INPUT -1
 
 typedef struct
 {
@@ -149,7 +152,7 @@ void initialize_DB(CDR *DB)
         i = 0;
 
         f_stream = fopen(FILENAME, "r");
-        if (f_stream == -1)
+        if (f_stream == NULL)
         {
                 printf("falhei a abrir o Documento\n");
                 return ;
@@ -179,14 +182,17 @@ void search_exact_caller_id(CDR *DB, const char *arg_id)
         int     i;
         int     result;
         int     caller_counter;
+        char    trimmed_arg[CALLER_ID_LENGTH];
+        char    trimmed_caller_id[CALLER_ID_LENGTH];
 
         caller_counter = 0;
         i = 0;
         result = -1;
-
         while (i < MAX_CDR_COUNT)
         {
-                result = memcmp(arg_id, DB[i].caller_id, CALLER_ID_LENGTH);
+                l_trim(arg_id, trimmed_arg);
+                l_trim(DB[i].caller_id, trimmed_caller_id);
+                result = strncmp(trimmed_arg, trimmed_caller_id, CALLER_ID_LENGTH);
                 if (result == 0)
                 {
                         print_CDR(&(DB[i]));
@@ -199,33 +205,57 @@ void search_exact_caller_id(CDR *DB, const char *arg_id)
         return ;
 }
 
-
-main_loop(CDR *DB)
+char define_program_mode(char **argv)
 {
-	
+        char    caller_id[CALLER_ID_LENGTH];
+
+        if (!argv[1])
+        {
+                return DEFAULT_MODE;
+        }
+        if (strncmp(argv[1], "-h", 2) == 0)
+        {
+                return HELP_TEXT_MODE;
+        }
+        if (sscanf(argv[1], "%s", caller_id) == 0)
+                return INVALID_INPUT;
+        else
+                return CALLER_ID_SEARCH_MODE;
+}
+
+void print_help_text()
+{
+        printf("\nIsto é o meu texto para te ajudar!\n");
+        return ;
+}
+
+void main_loop(CDR *DB, char mode, char *arg_id)
+{
+        
+        return ;
 }
 
 int main(int argc, char **argv)
 {
         static CDR      DB[MAX_CDR_COUNT];
-        FILE            *file_stream;
-        char            buff[MAX_LINE_LENGTH];
-        int             i;
+        char            program_mode;
 
-        i = 0;
+        program_mode = -1;
         printf("hello World\n");
+        program_mode = define_program_mode(argv);
+        if (program_mode == INVALID_INPUT)
+                return INVALID_INPUT;
+        if (program_mode == HELP_TEXT_MODE)
+        {
+                print_help_text();
+                return HELP_TEXT_MODE;
+        }
         initialize_DB(DB);
-        printf("\n\n\nsearch\n\n\n");
-        search_exact_caller_id(DB, "     918057328");
-        // for (int i = 0; i < 25; i++)
-        // {
-        //         read_call_record(&(DB[i]), buff);
-        //         print_CDR(&(DB[i]));
-        // }
-        // while (i < 5)
-        // {
-        //         print_CDR(&(DB[i++]));
-        // }
+        if (program_mode == CALLER_ID_SEARCH_MODE)
+        {
+                search_exact_caller_id(DB, argv[1]);
+        }
+        //main_loop(DB, program_mode, argv[1]);
         return 0;
 }
 
