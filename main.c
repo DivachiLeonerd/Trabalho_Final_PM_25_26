@@ -184,13 +184,24 @@ void search_exact_caller_id(CDR *DB, const char *arg_id)
         int     caller_counter;
         char    trimmed_arg[CALLER_ID_LENGTH];
         char    trimmed_caller_id[CALLER_ID_LENGTH];
+        char    temp[CALLER_ID_LENGTH];
 
         caller_counter = 0;
         i = 0;
         result = -1;
-        while (i < MAX_CDR_COUNT)
+        if (arg_id == NULL)
+        {
+                printf("Choose the number to search:");
+                scanf("%s", temp);
+                l_trim(temp, trimmed_arg);
+                printf("\n");
+        }
+        else
         {
                 l_trim(arg_id, trimmed_arg);
+        }
+        while (i < MAX_CDR_COUNT)
+        {
                 l_trim(DB[i].caller_id, trimmed_caller_id);
                 result = strncmp(trimmed_arg, trimmed_caller_id, CALLER_ID_LENGTH);
                 if (result == 0)
@@ -233,15 +244,127 @@ void print_menu()
 {
         printf("\n\n\t\t\t\t****************Menu****************\n\n");
         printf("\t\t\t\t1 - Search Calls made from chosen number\n");
-        printf("\t\t\t\t2 - Search Calls made to chosen number\n");
-        printf("\t\t\t\t3 - Sum of call-time (caller)\n");
+        printf("\t\t\t\t2 - Search Calls made to chosen number and write to file\n");
+        printf("\t\t\t\t3 - Total caller call time\n");
         printf("\t\t\t\te - exit\n\n");
         printf("\t\t\t\t************************************\n\n");
 }
 
-void main_loop(CDR *DB, char mode, char *arg_id)
+void fwrite_received_calls(CDR *DB, char *pathname)
 {
+        FILE    *f_wstream;
+        char    trimmed_client_id[CALLER_ID_LENGTH];
+        char    trimmed_arg[CALLER_ID_LENGTH];
+        char    temp[CALLER_ID_LENGTH];
+        int     i;
+        int     result;
+        int     client_counter;
+
+        i = 0;
+        client_counter = 0;
+        result = 0;
+
+        f_wstream = fopen(pathname, "w");
+        printf("Choose the number to search:");
+        scanf("%s", temp);
+        l_trim(temp, trimmed_arg);
+        printf("\n");
+
+        while (i < MAX_CDR_COUNT)
+        {
+                l_trim(DB[i].client_id, trimmed_client_id);
+                result = strncmp(trimmed_arg, trimmed_client_id, CALLER_ID_LENGTH);
+                if (result == 0)
+                {
+                        print_CDR(&(DB[i]));
+                        printf("\n");
+                        client_counter++;
+                        fprintf(f_wstream, "%s;%s;%s;%s;%s;%s;%s;%c;%c;\n",
+                                DB[i].caller_id, DB[i].caller_name, DB[i].client_id,
+                                DB[i].client_name, DB[i].start_date, DB[i].start_time,
+                                DB[i].end_time, DB[i].caller_zone, DB[i].client_zone);
+                }
+                i++;
+        }
+        printf("Total number of records:%d\n", client_counter);
+        fclose(f_wstream);
+        return ;
+}
+
+void get_caller_total_time(CDR *DB, char *caller_id)
+{
+        int     i;
+        int     result;
+        int     caller_counter;
+        char    trimmed_arg[CALLER_ID_LENGTH];
+        char    trimmed_caller_id[CALLER_ID_LENGTH];
+        char    temp[CALLER_ID_LENGTH];
+
+        caller_counter = 0;
+        i = 0;
+        result = -1;
+        if (caller_id == NULL)
+        {
+                printf("Choose the number to search:");
+                scanf("%s", temp);
+                l_trim(temp, trimmed_arg);
+                printf("\n");
+        }
+        else
+        {
+                l_trim(caller_id, trimmed_arg);
+        }
+        while (i < MAX_CDR_COUNT)
+        {
+                l_trim(DB[i].caller_id, trimmed_caller_id);
+                result = strncmp(trimmed_arg, trimmed_caller_id, CALLER_ID_LENGTH);
+                if (result == 0)
+                {
+                        print_CDR(&(DB[i]));
+                        printf("\n");
+                        caller_counter++;
+                }
+                i++;
+        }
+        printf("Total number of registers with that ID: %d\n", caller_counter);
+}
+
+void main_loop(CDR *DB)
+{
+        int     bytes_read;
+        char    usr_choice;
+        char    usr_input[MAX_MEMBER_LENGTH];
+
         print_menu();
+        printf("Choose:");
+        bytes_read = scanf(" %c", &usr_choice);
+        printf("\n");
+        if (bytes_read == 0)
+        {
+                printf("Error reading user input\n");
+                return ;
+        }
+        if (usr_choice == '1')
+        {
+                printf("Caller Id to search:");
+                scanf("%s", usr_input);
+                search_exact_caller_id(DB, usr_input);
+                printf("\n");
+        }
+        if (usr_choice == '2')
+        {
+                printf("Name the new file:");
+                scanf("%s", usr_input);
+                fwrite_received_calls(DB,usr_input);
+                printf("\n");
+        }
+        if (usr_choice == '3')
+        {
+                printf("Choose caller number to track:");
+                scanf("%s", usr_input);
+                get_caller_total_time(DB, usr_input);
+                printf("\n");
+        }
         return ;
 }
 
@@ -265,7 +388,7 @@ int main(int argc, char **argv)
                 search_exact_caller_id(DB, argv[1]);
         }
 
-        main_loop(DB, program_mode, argv[1]);
+        main_loop(DB);
         return 0;
 }
 
