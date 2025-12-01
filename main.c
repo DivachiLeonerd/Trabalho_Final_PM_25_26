@@ -9,8 +9,8 @@
 #define DATE_LENGTH 10 +1
 #define TIMESTAMP_LENGTH 11 + 1
 #define REGION_CD_LENGTH 1 + 1
-#define MAX_CDR_COUNT 25 //1000000
-#define FILENAME "./db.txt"
+#define MAX_CDR_COUNT 1000000 // 605
+#define FILENAME "./dbFULL.txt"
 #define HELP_TEXT_MODE 2
 #define DEFAULT_MODE 0
 #define CALLER_ID_SEARCH_MODE 1
@@ -29,38 +29,13 @@ typedef struct
 	char	client_zone;
 }CDR;
 
-void print_chr_array(char *array, int array_size)
-{
-        int     i;
-
-        i = 0;
-        while (i < array_size)
-        {
-                putchar(array[i++]);
-        }
-        return ;
-}
-
 void print_CDR(CDR *call_record)
 {
-        print_chr_array(call_record->caller_id, CALLER_ID_LENGTH);
-        putchar('-');
-        print_chr_array(call_record->caller_name, NAME_LENGTH);
-        putchar('-');
-        print_chr_array(call_record->client_id, CALLER_ID_LENGTH);
-        putchar('-');
-        print_chr_array(call_record->client_name, NAME_LENGTH);
-        putchar('-');
-        print_chr_array(call_record->start_date, DATE_LENGTH);
-        putchar('-');
-        print_chr_array(call_record->start_time, TIMESTAMP_LENGTH);
-        putchar('-');
-        print_chr_array(call_record->end_time, TIMESTAMP_LENGTH);
-        putchar('-');
-        print_chr_array(&(call_record->caller_zone), REGION_CD_LENGTH);
-        putchar('-');
-        print_chr_array(&(call_record->client_zone), REGION_CD_LENGTH);
-        putchar('\n');
+        printf("printCDR:%s-%s-%s-%s-%s-%s-%s-%c-%c", call_record->caller_id, call_record->caller_name,
+                call_record->client_id, call_record->client_name, call_record->start_date,
+                call_record->start_time, call_record->end_time, call_record->caller_zone,
+                call_record->client_zone);
+        printf("\n");
         return ;
 }
 
@@ -93,7 +68,7 @@ long int str_to_sec(const char *time_format)
         hours = 0;
         minutes = 0;
         seconds = 0;
-        sscanf(time_format, "%dh %dm %ds", &hours, &minutes, &seconds); //07h 06m 17s
+        sscanf(time_format, "%02dh %02dm %02ds", &hours, &minutes, &seconds); //07h 06m 17s
         total_secs = hours * 3600 + minutes * 60 + seconds;
         return total_secs;
 }
@@ -203,7 +178,7 @@ void initialize_DB(CDR *DB)
                 }
                 //printf("After Initialize_DB(): line:*%s* || result:%p\n", line, result);
                 new_CDR = read_call_record(&(DB[i]), line);
-                print_CDR(new_CDR);
+                //print_CDR(&(DB[i]));
                 i++;
         }
 	while (line != NULL || new_CDR != NULL);
@@ -270,17 +245,17 @@ char define_program_mode(char **argv)
 
 void print_help_text()
 {
-        printf("\nIsto é o meu texto para te ajudar!\n");
+        printf("\nI hope this text helps! You can do it!\n");
         return ;
 }
 
 void print_menu()
 {
         printf("\n\n\t\t\t\t****************Menu****************\n\n");
-        printf("\t\t\t\t1 - Search Calls made from chosen number\n");
-        printf("\t\t\t\t2 - Search Calls made to chosen number and write to file\n");
-        printf("\t\t\t\t3 - Total caller call time\n");
-        printf("\t\t\t\te - exit\n\n");
+        printf("\t\t\t\t0 - exit\n\n");
+        printf("\t\t\t\t1 - Show calls performed by a number\n");
+        printf("\t\t\t\t2 - Write the calls received by a number in a file\n");
+        printf("\t\t\t\t3 - Total conversation time initiated by a number\n");
         printf("\t\t\t\t************************************\n\n");
 }
 
@@ -305,7 +280,6 @@ void fwrite_received_calls(CDR *DB)
         scanf("%s", temp);
         l_trim(temp, trimmed_arg);
         printf("\n");
-
         while (i < MAX_CDR_COUNT)
         {
                 l_trim(DB[i].client_id, trimmed_client_id);
@@ -341,6 +315,7 @@ void get_caller_total_time(CDR *DB)
         caller_counter = 0;
         i = 0;
         result = -1;
+        total_secs = 0;
         printf("Choose the number to search:");
         scanf("%s", temp);
         l_trim(temp, trimmed_arg);
@@ -353,11 +328,12 @@ void get_caller_total_time(CDR *DB)
                 {
                         print_CDR(&(DB[i]));
                         printf("\n");
-                        total_secs += str_to_sec(DB[i].end_time) - str_to_sec(DB[i].start_date);
+                        total_secs += str_to_sec(DB[i].end_time) - str_to_sec(DB[i].start_time);
                         caller_counter++;
                 }
                 i++;
         }
+        secs_to_str(total_secs, formatted_time);
         printf("Total number of registers with that ID: %d\n", caller_counter);
         printf("Total number of seconds is %ld, which translates to %s\n", total_secs, formatted_time);
 }
@@ -366,83 +342,81 @@ void main_loop(CDR *DB)
 {
         int     bytes_read;
         char    usr_choice;
-        char    usr_input[MAX_MEMBER_LENGTH];
 
-        print_menu();
-        printf("Choose:");
-        bytes_read = scanf(" %c", &usr_choice);
-        printf("\n");
-        if (bytes_read == 0)
+        while (1)
         {
-                printf("Error reading user input\n");
-                return ;
-        }
-        if (usr_choice == '1')
-        {
-                search_exact_caller_id(DB, usr_input);
+                print_menu();
+                printf("Choose:");
+                bytes_read = scanf(" %c", &usr_choice);
                 printf("\n");
+                if (bytes_read == 0)
+                {
+                        printf("Error reading user input\n");
+                        return ;
+                }
+                if (usr_choice == '0')
+                        return ;
+                if (usr_choice == '1')
+                {
+                        search_exact_caller_id(DB, NULL);
+                        printf("\n");
+                }
+                if (usr_choice == '2')
+                {
+                        fwrite_received_calls(DB);
+                        printf("\n");
+                }
+                if (usr_choice == '3')
+                {
+                        get_caller_total_time(DB);
+                        printf("\n");
+                }
+                printf("Click Enter to Continue...\n");
+                getc(stdin);
+                while (getc(stdin) != 10);
         }
-        if (usr_choice == '2')
-        {
-                fwrite_received_calls(DB);
-                printf("\n");
-        }
-        if (usr_choice == '3')
-        {
-                get_caller_total_time(DB);
-                printf("\n");
-        }
-        return ;
 }
 
 int main(int argc, char **argv)
 {
-        // static CDR      DB[MAX_CDR_COUNT];
-        // char            program_mode;
-        long int                total_secs;
-        // program_mode = -1;
-        // program_mode = define_program_mode(argv);
-        // if (program_mode == INVALID_INPUT)
-        //         return INVALID_INPUT;
-        // if (program_mode == HELP_TEXT_MODE)
-        // {
-        //         print_help_text();
-        //         return HELP_TEXT_MODE;
-        // }
-        // initialize_DB(DB);
-        // if (program_mode == CALLER_ID_SEARCH_MODE)
-        // {
-        //         search_exact_caller_id(DB, argv[1]);
-        // }
+        static CDR      DB[MAX_CDR_COUNT];
+        char            program_mode;
+        program_mode = -1;
+        program_mode = define_program_mode(argv);
+        if (program_mode == INVALID_INPUT)
+                return INVALID_INPUT;
+        if (program_mode == HELP_TEXT_MODE)
+        {
+                print_help_text();
+                return HELP_TEXT_MODE;
+        }
+        initialize_DB(DB);
+        if (program_mode == CALLER_ID_SEARCH_MODE)
+        {
+                search_exact_caller_id(DB, argv[1]);
+        }
+        main_loop(DB);
 
-        // main_loop(DB);
 
-        total_secs = str_to_sec("00h 00m 01s");
-        printf("totalsecs:%ld\n", total_secs);
-        total_secs = str_to_sec("00h 01m 01s");
-        printf("totalsecs:%ld\n", total_secs);
-        total_secs = str_to_sec("01h 01m 01s");
-        printf("totalsecs:%ld\n", total_secs);
+        // long int        total_secs;
+        // char            str_end[TIMESTAMP_LENGTH] = "7h 7m 20s";
+        // char            str_start[TIMESTAMP_LENGTH] = "07h 06m 17s";
+        // char            final[TIMESTAMP_LENGTH];
+        // long int        time1;
+        // long int        time2;
+        // int             i = 24;
+        // time1 = str_to_sec(str_end);
+        // time2 = str_to_sec(str_start);
+        // total_secs = time1 - time2;
+        // secs_to_str(total_secs, final);
+        // printf("time_start:%ld\ntime_end:%ld\n subtraction:%s\n", time2, time1, final);
 
-        const char    *str = "00h 10m 01s";
-        char            str_2[TIMESTAMP_LENGTH];
-        long int        seconds;
+        // printf("\n\n");
+        // time1 = str_to_sec(DB[i].end_time);
+        // time2 = str_to_sec(DB[i].start_time);
+        // total_secs = time1 - time2;
+        // secs_to_str(total_secs, final);
+        // printf("DB[i].end_time:%s\nDB[i].start_time:%s\nend_time(secs):%ld\nstart_time(secs):%ld\ntotal_time:%s", DB[i].end_time,DB[i].start_time, time1, time2, final);
 
-        str_2[TIMESTAMP_LENGTH] = 0;
-        seconds = str_to_sec(str);
-        printf("seconds: %ld\n", seconds);
-        secs_to_str(seconds, str_2);
-        printf("%s\n", str_2);
         return 0;
 }
-
-
-
-
-// int main(int argc, char *argv)
-// {
-// 	static CDR DB[MAX_CDR_COUNT];
-
-// 	main_loop(DB);
-// 	return 0;
-// }
