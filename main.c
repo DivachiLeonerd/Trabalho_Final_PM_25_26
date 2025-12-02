@@ -10,7 +10,7 @@
 #define TIMESTAMP_LENGTH 11 + 1
 #define REGION_CD_LENGTH 1 + 1
 #define MAX_CDR_COUNT 1000000 // 605
-#define FILENAME "./dbFULL.txt"
+#define FILENAME "./db.txt"
 #define HELP_TEXT_MODE 2
 #define DEFAULT_MODE 0
 #define CALLER_ID_SEARCH_MODE 1
@@ -31,7 +31,7 @@ typedef struct
 
 void print_CDR(CDR *call_record)
 {
-        printf("printCDR:%s-%s-%s-%s-%s-%s-%s-%c-%c", call_record->caller_id, call_record->caller_name,
+        printf("%s-%s-%s-%s-%s-%s-%s-%c-%c", call_record->caller_id, call_record->caller_name,
                 call_record->client_id, call_record->client_name, call_record->start_date,
                 call_record->start_time, call_record->end_time, call_record->caller_zone,
                 call_record->client_zone);
@@ -150,7 +150,7 @@ CDR	*read_call_record(CDR *new_CDR, char *line)//reads and initializes a call_re
 	return new_CDR;
 }
 
-void initialize_DB(CDR *DB)
+char initialize_DB(CDR *DB)
 {
 	char	line[MAX_LINE_LENGTH];
 	FILE	*f_stream;
@@ -163,8 +163,8 @@ void initialize_DB(CDR *DB)
         f_stream = fopen(FILENAME, "r");
         if (f_stream == NULL)
         {
-                printf("falhei a abrir o Documento\n");
-                return ;
+                printf("Failed to open Document. Need a db.txt on the same directory as executable\n");
+                return 0;
         }
         do
         {
@@ -183,7 +183,7 @@ void initialize_DB(CDR *DB)
         }
 	while (line != NULL || new_CDR != NULL);
         fclose(f_stream);
-        return ;
+        return 1;
 }
 
 void search_exact_caller_id(CDR *DB, const char *arg_id)
@@ -245,13 +245,15 @@ char define_program_mode(char **argv)
 
 void print_help_text()
 {
-        printf("\nI hope this text helps! You can do it!\n");
+        printf("\nVersion: 1.0\nSyntax: ./main.out\n");
+        printf("or\nSyntax: ./main.out <telephone number>\n");
+        printf("Example: ./main.out 34967692346\n");
         return ;
 }
 
 void print_menu()
 {
-        printf("\n\n\t\t\t\t****************Menu****************\n\n");
+        printf("\n\n\t\t\t\t****************Call Analysis****************\n\n");
         printf("\t\t\t\t0 - exit\n\n");
         printf("\t\t\t\t1 - Show calls performed by a number\n");
         printf("\t\t\t\t2 - Write the calls received by a number in a file\n");
@@ -381,6 +383,8 @@ int main(int argc, char **argv)
 {
         static CDR      DB[MAX_CDR_COUNT];
         char            program_mode;
+        char            is_initialized;
+
         program_mode = -1;
         program_mode = define_program_mode(argv);
         if (program_mode == INVALID_INPUT)
@@ -390,7 +394,9 @@ int main(int argc, char **argv)
                 print_help_text();
                 return HELP_TEXT_MODE;
         }
-        initialize_DB(DB);
+        is_initialized = initialize_DB(DB);
+        if (!is_initialized)
+                return 1;
         if (program_mode == CALLER_ID_SEARCH_MODE)
         {
                 search_exact_caller_id(DB, argv[1]);
