@@ -39,6 +39,20 @@ void print_CDR(CDR *call_record)
         return ;
 }
 
+void copy_CDR(const CDR *call_record, CDR *new_call_record)
+{
+        strncpy(new_call_record->caller_id, call_record->caller_id, CALLER_ID_LENGTH);
+        strncpy( new_call_record->caller_name, call_record->caller_name, NAME_LENGTH);
+        strncpy(new_call_record->client_id, call_record->client_id, CALLER_ID_LENGTH);
+        strncpy(new_call_record->client_name, call_record->client_name, NAME_LENGTH);
+        strncpy(new_call_record->start_date, call_record->start_date, DATE_LENGTH);
+        strncpy(new_call_record->start_time, call_record->start_time, TIMESTAMP_LENGTH);
+        strncpy(new_call_record->end_time, call_record->end_time, TIMESTAMP_LENGTH);
+        strncpy(&(new_call_record->caller_zone), &(call_record->caller_zone), REGION_CD_LENGTH);
+        strncpy(&(new_call_record->client_zone), &(call_record->client_zone), REGION_CD_LENGTH);
+        return ;
+}
+
 void l_trim(const char *string, char *trimmed)
 {
         int     i;
@@ -75,20 +89,20 @@ long int str_to_sec(const char *time_format)
 
 void secs_to_str(const long int arg_total_seconds, char *str)
 {
-        int             hours;
-        int             minutes;
-        int             seconds;
+        long int             hours;
+        long int             minutes;
+        long int             seconds;
         long int        total_seconds;
 
         total_seconds = arg_total_seconds;
 
-        hours = total_seconds / 3600;
-        total_seconds = total_seconds % 3600;
+        hours = total_seconds / (long)3600;
+        total_seconds = total_seconds % (long)3600;
         
-        minutes = total_seconds / 60;
-        total_seconds = total_seconds % 60;
+        minutes = total_seconds / (long)60;
+        total_seconds = total_seconds % (long)60;
         seconds = total_seconds;
-        sprintf(str, "%02dh %02dm %02ds\n", hours, minutes, seconds);
+        sprintf(str, "%02ldh %02ldm %02lds\n", hours, minutes, seconds);
         return ;
 }
 
@@ -222,6 +236,54 @@ void search_exact_caller_id(CDR *DB, const char *arg_id)
                 i++;
         }
         printf("Total number of registers with that ID: %d\n", caller_counter);
+        return ;
+}
+
+//if MSISDN has no country code, fix it by putting the portuguese prefix.
+void put_country_cd(char *caller_id)
+{
+        char    trimmed_id[CALLER_ID_LENGTH];
+
+        caller_id[CALLER_ID_LENGTH] = '\0';
+        trimmed_id[CALLER_ID_LENGTH] = '\0';
+        l_trim(caller_id, trimmed_id);
+        if (strlen(trimmed_id) == 9)
+        {
+                caller_id[2] = '3';
+                caller_id[3] = '5';
+                caller_id[4] = '1';
+                // printf("put_country_cd():*%s*\n", caller_id);          
+        }
+        return ;
+}
+
+//Searches for caller_id using the country code | doesn't need char *arg_id bc it will never be used through cli
+void search_caller_id(CDR *DB, CDR *matches_array)
+{
+        int     i;
+        int     caller_counter;
+        int     result;
+        char    search_id[CALLER_ID_LENGTH];
+
+        i = 0;
+        caller_counter = 0;
+        printf("Choose the number:");
+        scanf(" %s", search_id);
+        printf("\n");
+        put_country_cd(search_id);
+        printf("search_caller_id():*%s*\n", search_id);
+        while (i < MAX_CDR_COUNT)
+        {
+                put_country_cd((&(DB[i]))->caller_id);
+                result = strncmp((&(DB[i]))->caller_id, search_id, CALLER_ID_LENGTH);
+                if (result == 0)
+                {
+                        print_CDR(&(DB[i]));
+                        copy_CDR(&(DB[i]), &(matches_array[caller_counter]));
+                        caller_counter++;
+                }
+                i++;
+        }
         return ;
 }
 
@@ -382,26 +444,26 @@ void main_loop(CDR *DB)
 int main(int argc, char **argv)
 {
         static CDR      DB[MAX_CDR_COUNT];
-        char            program_mode;
+        // char            program_mode;
         char            is_initialized;
 
-        program_mode = -1;
-        program_mode = define_program_mode(argv);
-        if (program_mode == INVALID_INPUT)
-                return INVALID_INPUT;
-        if (program_mode == HELP_TEXT_MODE)
-        {
-                print_help_text();
-                return HELP_TEXT_MODE;
-        }
+        // program_mode = -1;
+        // program_mode = define_program_mode(argv);
+        // if (program_mode == INVALID_INPUT)
+        //         return INVALID_INPUT;
+        // if (program_mode == HELP_TEXT_MODE)
+        // {
+        //         print_help_text();
+        //         return HELP_TEXT_MODE;
+        // }
         is_initialized = initialize_DB(DB);
         if (!is_initialized)
                 return 1;
-        if (program_mode == CALLER_ID_SEARCH_MODE)
-        {
-                search_exact_caller_id(DB, argv[1]);
-        }
-        main_loop(DB);
+        // if (program_mode == CALLER_ID_SEARCH_MODE)
+        // {
+        //         search_exact_caller_id(DB, argv[1]);
+        // }
+        // main_loop(DB);
 
 
         // long int        total_secs;
@@ -424,5 +486,14 @@ int main(int argc, char **argv)
         // secs_to_str(total_secs, final);
         // printf("DB[i].end_time:%s\nDB[i].start_time:%s\nend_time(secs):%ld\nstart_time(secs):%ld\ntotal_time:%s", DB[i].end_time,DB[i].start_time, time1, time2, final);
 
+
+        CDR    matches_array[1000];
+        // print_CDR(&(DB[0]));
+        // print_CDR(&(DB[1]));
+        // copy_CDR(&(DB[0]), &(DB[1]));
+        // print_CDR(&(DB[0]));
+        // print_CDR(&(DB[1]));
+        search_caller_id(DB, matches_array);
+        // put_country_cd(DB[0].caller_id);
         return 0;
 }
