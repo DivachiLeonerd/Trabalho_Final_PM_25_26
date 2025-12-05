@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define MAX_LINE_LENGTH 173 //SUM of max field width + all the ';' + '\n'
 #define MAX_MEMBER_COUNTER 8 + 1
@@ -215,7 +216,7 @@ void search_exact_caller_id(CDR *DB, const char *arg_id)
         if (arg_id == NULL)
         {
                 printf("Choose the number to search:");
-                scanf("%s", temp);
+                scanf(" %s", temp);
                 l_trim(temp, trimmed_arg);
                 printf("\n");
         }
@@ -243,46 +244,109 @@ void search_exact_caller_id(CDR *DB, const char *arg_id)
 void put_country_cd(char *caller_id)
 {
         char    trimmed_id[CALLER_ID_LENGTH];
+        int     i;
+        int     j;
 
-        caller_id[CALLER_ID_LENGTH] = '\0';
+        
         trimmed_id[CALLER_ID_LENGTH] = '\0';
+        // printf("put_cd:caller_id:before:*%s*\n", caller_id);
         l_trim(caller_id, trimmed_id);
-        if (strlen(trimmed_id) == 9)
+        // printf("put_cd:trimmed_id:after:*%s*\n", trimmed_id);
+        j = strlen(trimmed_id);
+        // printf("strlen:%d\n", j);
+        if (j == 9)
         {
+                i = CALLER_ID_LENGTH - 1;
+                while (i > 4)
+                {
+                        caller_id[i--] = trimmed_id[j--];
+                }
+                caller_id[0] = ' ';
+                caller_id[1] = ' ';
                 caller_id[2] = '3';
                 caller_id[3] = '5';
                 caller_id[4] = '1';
-                // printf("put_country_cd():*%s*\n", caller_id);          
+                // printf("put_cd:caller:after:*%s*\n", caller_id);
         }
         return ;
 }
 
-//Searches for caller_id using the country code | doesn't need char *arg_id bc it will never be used through cli
-void search_caller_id(CDR *DB, CDR *matches_array)
+long int get_call_cost(CDR *call_record)
 {
-        int     i;
-        int     caller_counter;
-        int     result;
-        char    search_id[CALLER_ID_LENGTH];
+        int        bigger;
+        int        smaller;
 
+        bigger = call_record->caller_zone;
+        smaller = call_record->client_zone;
+        if (call_record->caller_zone < call_record->client_zone)
+        {
+                bigger = call_record->client_zone;
+                smaller = call_record->caller_zone;
+        }
+        return (bigger - smaller + 1);
+}
+
+//Searches for caller_id using the country code | doesn't need char *arg_id bc it will never be used through cli
+void search_caller_id(CDR *DB)
+{
+        int             i;
+        int             caller_counter;
+        int             result;
+        char            search_id[CALLER_ID_LENGTH];
+        long int        total_conv_time;
+        float           average_call_time;
+        int             total_call_cost;
+        CDR             matches_array[1000];
+        
+        total_conv_time = 0;
         i = 0;
+        total_call_cost = 0;
+
         caller_counter = 0;
         printf("Choose the number:");
         scanf(" %s", search_id);
         printf("\n");
+        // printf("search_id:before:*%s*\n", search_id);
         put_country_cd(search_id);
-        printf("search_caller_id():*%s*\n", search_id);
+        // printf("search_caller_id():*%s*\n", search_id);
         while (i < MAX_CDR_COUNT)
         {
                 put_country_cd((&(DB[i]))->caller_id);
+                // printf("search_caller_id:caller_id:*%s*\n", (&(DB[i]))->caller_id);
                 result = strncmp((&(DB[i]))->caller_id, search_id, CALLER_ID_LENGTH);
                 if (result == 0)
                 {
-                        print_CDR(&(DB[i]));
+                        if (caller_counter > 999)
+                        {
+                                printf("Too many record calls (more than 1000). Exit.\n");
+                                exit(1);
+                        }
                         copy_CDR(&(DB[i]), &(matches_array[caller_counter]));
+                        total_conv_time += str_to_sec((&(matches_array[caller_counter]))->end_time) - str_to_sec((&(matches_array[caller_counter]))->start_time);
+                        total_call_cost += get_call_cost(&(matches_array[caller_counter]));
                         caller_counter++;
                 }
                 i++;
+        }
+        average_call_time = (float)(total_conv_time / (float)caller_counter);
+        printf("Total number of records: %d\n", caller_counter);
+        printf("\n\n");
+        printf("Total number of calls = %d seconds.\n", caller_counter);
+        printf("Total conversation time = %ld seconds.\n", total_conv_time);
+        printf("Average Call Time = %.2f seconds.\n", average_call_time);
+        printf("Total cost of calls = %d seconds.\n", total_call_cost);
+// Total number of calls = 230
+// Total conversation time = 3817 seconds
+// Average call time = 16.60 seconds
+// Total cost of calls = 6539
+        printf("Click Enter to Continue...\n");
+        getc(stdin);
+        while (getc(stdin) != 10);
+
+        i = 0;
+        while (i < caller_counter)
+        {
+                print_CDR(&(matches_array[i++]));
         }
         return ;
 }
@@ -320,6 +384,8 @@ void print_menu()
         printf("\t\t\t\t1 - Show calls performed by a number\n");
         printf("\t\t\t\t2 - Write the calls received by a number in a file\n");
         printf("\t\t\t\t3 - Total conversation time initiated by a number\n");
+        printf("\n\n\n");
+        printf("\t\t\t\t4 - Total time, average, and total cost performed by a number\n");
         printf("\t\t\t\t************************************\n\n");
 }
 
@@ -435,6 +501,10 @@ void main_loop(CDR *DB)
                         get_caller_total_time(DB);
                         printf("\n");
                 }
+                if (usr_choice == '4')
+                {
+                        search_caller_id(DB);
+                }
                 printf("Click Enter to Continue...\n");
                 getc(stdin);
                 while (getc(stdin) != 10);
@@ -444,26 +514,26 @@ void main_loop(CDR *DB)
 int main(int argc, char **argv)
 {
         static CDR      DB[MAX_CDR_COUNT];
-        // char            program_mode;
+        char            program_mode;
         char            is_initialized;
 
-        // program_mode = -1;
-        // program_mode = define_program_mode(argv);
-        // if (program_mode == INVALID_INPUT)
-        //         return INVALID_INPUT;
-        // if (program_mode == HELP_TEXT_MODE)
-        // {
-        //         print_help_text();
-        //         return HELP_TEXT_MODE;
-        // }
+        program_mode = -1;
+        program_mode = define_program_mode(argv);
+        if (program_mode == INVALID_INPUT)
+                return INVALID_INPUT;
+        if (program_mode == HELP_TEXT_MODE)
+        {
+                print_help_text();
+                return HELP_TEXT_MODE;
+        }
         is_initialized = initialize_DB(DB);
         if (!is_initialized)
                 return 1;
-        // if (program_mode == CALLER_ID_SEARCH_MODE)
-        // {
-        //         search_exact_caller_id(DB, argv[1]);
-        // }
-        // main_loop(DB);
+        if (program_mode == CALLER_ID_SEARCH_MODE)
+        {
+                search_exact_caller_id(DB, argv[1]);
+        }
+        main_loop(DB);
 
 
         // long int        total_secs;
@@ -487,13 +557,12 @@ int main(int argc, char **argv)
         // printf("DB[i].end_time:%s\nDB[i].start_time:%s\nend_time(secs):%ld\nstart_time(secs):%ld\ntotal_time:%s", DB[i].end_time,DB[i].start_time, time1, time2, final);
 
 
-        CDR    matches_array[1000];
         // print_CDR(&(DB[0]));
         // print_CDR(&(DB[1]));
         // copy_CDR(&(DB[0]), &(DB[1]));
         // print_CDR(&(DB[0]));
         // print_CDR(&(DB[1]));
-        search_caller_id(DB, matches_array);
+        // search_caller_id(DB, matches_array);
         // put_country_cd(DB[0].caller_id);
         return 0;
 }
