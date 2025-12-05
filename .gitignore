@@ -1,6 +1,6 @@
 *.json
-genV1Linux
 db.txt
 *.txt
 test
 *.out
+cdrV1Linux

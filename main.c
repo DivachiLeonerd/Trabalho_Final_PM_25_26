@@ -10,7 +10,7 @@
 #define DATE_LENGTH 10 +1
 #define TIMESTAMP_LENGTH 11 + 1
 #define REGION_CD_LENGTH 1 + 1
-#define MAX_CDR_COUNT 1000000 // 605
+#define MAX_CDR_COUNT 1000000
 #define FILENAME "./db.txt"
 #define HELP_TEXT_MODE 2
 #define DEFAULT_MODE 0
@@ -83,7 +83,7 @@ long int str_to_sec(const char *time_format)
         hours = 0;
         minutes = 0;
         seconds = 0;
-        sscanf(time_format, "%02dh %02dm %02ds", &hours, &minutes, &seconds); //07h 06m 17s
+        sscanf(time_format, "%02dh %02dm %02ds", &hours, &minutes, &seconds); //XXh XXm XXs
         total_secs = hours * 3600 + minutes * 60 + seconds;
         return total_secs;
 }
@@ -134,19 +134,17 @@ void read_next_member(char *member,const char *line)
         }
 }
 
-CDR	*read_call_record(CDR *new_CDR, char *line)//reads and initializes a call_record, returns DB's address or null whether it was successful or not
+//reads and initializes a call_record, returns DB's address
+CDR	*read_call_record(CDR *new_CDR, char *line)
 {
 	char			member[MAX_MEMBER_LENGTH];
 	static short int	member_counter = 0;
 
 	if (member_counter >= MAX_MEMBER_COUNTER)
 	        member_counter = 0;
-        // printf("read_call_record():line:%s\n", line);
 	while (member_counter < MAX_MEMBER_COUNTER)
 	{
-		//call a function that gets the next member
                 read_next_member(member, line);
-                // printf("read_call_record(): %s\nmember counter:%d\n", member, member_counter);
 		switch (member_counter)
 		{
 			case 0:strncpy(new_CDR->caller_id, member, CALLER_ID_LENGTH);break;
@@ -184,16 +182,13 @@ char initialize_DB(CDR *DB)
         do
         {
                 result = fgets(line, MAX_LINE_LENGTH, f_stream);
-                //printf("Initialize_DB(): line:*%d* || result:%p\n", line[0], result);
                 if (result == NULL)
                         break ;
                 while (line[0] == '\n')
                 {
                         result = fgets(line, 1, f_stream); 
                 }
-                //printf("After Initialize_DB(): line:*%s* || result:%p\n", line, result);
                 new_CDR = read_call_record(&(DB[i]), line);
-                //print_CDR(&(DB[i]));
                 i++;
         }
 	while (line != NULL || new_CDR != NULL);
@@ -240,7 +235,7 @@ void search_exact_caller_id(CDR *DB, const char *arg_id)
         return ;
 }
 
-//if MSISDN has no country code, fix it by putting the portuguese prefix.
+//if MSISDN has no country code, fix it by putting the portuguese prefix. Otherwise, just do a left trim.
 void put_country_cd(char *caller_id)
 {
         char    trimmed_id[CALLER_ID_LENGTH];
@@ -249,11 +244,8 @@ void put_country_cd(char *caller_id)
 
         
         trimmed_id[CALLER_ID_LENGTH] = '\0';
-        // printf("put_cd:caller_id:before:*%s*\n", caller_id);
         l_trim(caller_id, trimmed_id);
-        // printf("put_cd:trimmed_id:after:*%s*\n", trimmed_id);
         j = strlen(trimmed_id);
-        // printf("strlen:%d\n", j);
         if (j == 9)
         {
                 i = CALLER_ID_LENGTH - 1;
@@ -266,15 +258,19 @@ void put_country_cd(char *caller_id)
                 caller_id[2] = '3';
                 caller_id[3] = '5';
                 caller_id[4] = '1';
-                // printf("put_cd:caller:after:*%s*\n", caller_id);
+        }
+        else
+        {
+                strncpy(caller_id, trimmed_id, CALLER_ID_LENGTH);
         }
         return ;
 }
 
-long int get_call_cost(CDR *call_record)
+long int get_call_cost(CDR *call_record, long int conv_time)
 {
-        int        bigger;
-        int        smaller;
+        long int        bigger;
+        long int        smaller;
+        long int        price_per_sec;
 
         bigger = call_record->caller_zone;
         smaller = call_record->client_zone;
@@ -283,16 +279,19 @@ long int get_call_cost(CDR *call_record)
                 bigger = call_record->client_zone;
                 smaller = call_record->caller_zone;
         }
-        return (bigger - smaller + 1);
+        price_per_sec = (bigger - smaller + 1);
+        return (price_per_sec * conv_time);
 }
 
-//Searches for caller_id using the country code | doesn't need char *arg_id bc it will never be used through cli
-void search_caller_id(CDR *DB)
+//Handles the option 4 logic
+void time_avg_cost(CDR *DB)
 {
         int             i;
         int             caller_counter;
         int             result;
         char            search_id[CALLER_ID_LENGTH];
+        char            temp[CALLER_ID_LENGTH];
+        long int        conv_time;
         long int        total_conv_time;
         float           average_call_time;
         int             total_call_cost;
@@ -306,14 +305,12 @@ void search_caller_id(CDR *DB)
         printf("Choose the number:");
         scanf(" %s", search_id);
         printf("\n");
-        // printf("search_id:before:*%s*\n", search_id);
         put_country_cd(search_id);
-        // printf("search_caller_id():*%s*\n", search_id);
         while (i < MAX_CDR_COUNT)
         {
-                put_country_cd((&(DB[i]))->caller_id);
-                // printf("search_caller_id:caller_id:*%s*\n", (&(DB[i]))->caller_id);
-                result = strncmp((&(DB[i]))->caller_id, search_id, CALLER_ID_LENGTH);
+                strncpy(temp, (&(DB[i]))->caller_id, CALLER_ID_LENGTH);
+                put_country_cd(temp);
+                result = strncmp(temp, search_id, CALLER_ID_LENGTH);
                 if (result == 0)
                 {
                         if (caller_counter > 999)
@@ -322,8 +319,9 @@ void search_caller_id(CDR *DB)
                                 exit(1);
                         }
                         copy_CDR(&(DB[i]), &(matches_array[caller_counter]));
-                        total_conv_time += str_to_sec((&(matches_array[caller_counter]))->end_time) - str_to_sec((&(matches_array[caller_counter]))->start_time);
-                        total_call_cost += get_call_cost(&(matches_array[caller_counter]));
+                        conv_time = str_to_sec((&(matches_array[caller_counter]))->end_time) - str_to_sec((&(matches_array[caller_counter]))->start_time);
+                        total_conv_time += conv_time;
+                        total_call_cost += get_call_cost(&(matches_array[caller_counter]), conv_time);
                         caller_counter++;
                 }
                 i++;
@@ -335,10 +333,6 @@ void search_caller_id(CDR *DB)
         printf("Total conversation time = %ld seconds.\n", total_conv_time);
         printf("Average Call Time = %.2f seconds.\n", average_call_time);
         printf("Total cost of calls = %d seconds.\n", total_call_cost);
-// Total number of calls = 230
-// Total conversation time = 3817 seconds
-// Average call time = 16.60 seconds
-// Total cost of calls = 6539
         printf("Click Enter to Continue...\n");
         getc(stdin);
         while (getc(stdin) != 10);
@@ -503,7 +497,7 @@ void main_loop(CDR *DB)
                 }
                 if (usr_choice == '4')
                 {
-                        search_caller_id(DB);
+                        time_avg_cost(DB);
                 }
                 printf("Click Enter to Continue...\n");
                 getc(stdin);
@@ -517,6 +511,7 @@ int main(int argc, char **argv)
         char            program_mode;
         char            is_initialized;
 
+        (void)argc;
         program_mode = -1;
         program_mode = define_program_mode(argv);
         if (program_mode == INVALID_INPUT)
@@ -534,35 +529,5 @@ int main(int argc, char **argv)
                 search_exact_caller_id(DB, argv[1]);
         }
         main_loop(DB);
-
-
-        // long int        total_secs;
-        // char            str_end[TIMESTAMP_LENGTH] = "7h 7m 20s";
-        // char            str_start[TIMESTAMP_LENGTH] = "07h 06m 17s";
-        // char            final[TIMESTAMP_LENGTH];
-        // long int        time1;
-        // long int        time2;
-        // int             i = 24;
-        // time1 = str_to_sec(str_end);
-        // time2 = str_to_sec(str_start);
-        // total_secs = time1 - time2;
-        // secs_to_str(total_secs, final);
-        // printf("time_start:%ld\ntime_end:%ld\n subtraction:%s\n", time2, time1, final);
-
-        // printf("\n\n");
-        // time1 = str_to_sec(DB[i].end_time);
-        // time2 = str_to_sec(DB[i].start_time);
-        // total_secs = time1 - time2;
-        // secs_to_str(total_secs, final);
-        // printf("DB[i].end_time:%s\nDB[i].start_time:%s\nend_time(secs):%ld\nstart_time(secs):%ld\ntotal_time:%s", DB[i].end_time,DB[i].start_time, time1, time2, final);
-
-
-        // print_CDR(&(DB[0]));
-        // print_CDR(&(DB[1]));
-        // copy_CDR(&(DB[0]), &(DB[1]));
-        // print_CDR(&(DB[0]));
-        // print_CDR(&(DB[1]));
-        // search_caller_id(DB, matches_array);
-        // put_country_cd(DB[0].caller_id);
         return 0;
 }
