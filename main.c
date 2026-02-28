@@ -7,7 +7,7 @@
 #define MAX_MEMBER_LENGTH 50 + 1
 #define CALLER_ID_LENGTH 14 + 1
 #define NAME_LENGTH 50 + 1
-#define DATE_LENGTH 10 +1
+#define DATE_LENGTH 10 + 1
 #define TIMESTAMP_LENGTH 11 + 1
 #define REGION_CD_LENGTH 1 + 1
 #define MAX_CDR_COUNT 1000000
