@@ -1,4 +1,6 @@
 *.json
-*.Identifier
-*endpointdlp
-*.o
+db.txt
+*.txt
+test
+*.out
+cdrV1Linux
