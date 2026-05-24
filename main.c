@@ -1,100 +1,69 @@
-#include <stdio.h>
-#include <string.h>
+#include "coordinator.h"
 
-#define MAX_LINE_LENGTH 170 //SUM of max field width + all the ';'
-#define MAX_MEMBER_COUNTER 9
-typedef struct
+#define	WRONG_COMMAND -1
+#define NOT_FOPEN -1
+
+
+/*
+static int read_usr_command()
 {
-	char	caller_id[14];
-	char	caller_name[50];
-	char	client_id[14];
-	char	client_name[50];
-	char	start_date[10];
-	char	start_time[11];
-	char	end_time[11];
-	char	caller_zone;
-	char	client_zone;
-}CDR;
+	int	n;
+	char usr_input[100];
+	n = 0;
 
-char *read_next_member(char *line)
-{
-	char				member[50];
-	short int			i;
-	static short int	j = 0;
-
-	i = 0;
-	if (j >= MAX_LINE_LENGTH)
-		return null;
-	while (i < 50)
+	while (!n)
 	{
-		member[i++] = '0';
+		n = scanf("> %s", &usr_input);
 	}
-	i = 0;
-	while (1)
+	if (usr_input[1] != ' ' || usr_input[1] != '\0')
+		return 0;
+	switch (usr_input[0])
 	{
-		if (line[j] == '\n')
-		{
-			j++;
-			return (member);
-		}
-		member[i] = line[j];
-	}
-}
-
-void read_call_record(CDR *DB, char *line)
-{
-	short int	i;
-	short int	member_counter;
-	char		*member;
-
-	i = 0;
-	member_counter = 0;
-	while (member_counter < MAX_MEMBER_COUNTER)
-	{
-		//call a function that gets the next member
-		member = read_next_member(line);
-		switch (member_counter)
-		{
-			case 0: 
-			case 1:
-			case 2:
-			case 3:
-			case 4:
-			case 5:
-			case 6:
-			case 7:
-			case 8:
-		}
+	case 'C': cache_command();
+		break;
+	case 'D': abbr_cache_command();
+		break;
+	case 'E': statistics_command();
+		break;
+	case 'F':
+		break;
+	case 'G':
+		break;
+	case 'L':
+		break;
+	case 'M':
+		break;
+	case 'O':
+		break;
+	case 'T':
+		break;
+	case 'X':
+		break;
+	case 'Z':
+		break;
+	default:
+		break;
 	}
 }
+*/
 
-void write_call_record(CDR *DB, FILE *output_stream)
+int main()
 {
-	
-}
+	int	is_db_open;
+	int	return_val;
+	//Coordinator	coordinator;
 
-void initialize_DB(CDR *DB)
-{
-	char	line[MAX_LINE_LENGTH];
-	FILE	*f_stream;
+	printf("FICHEIRO: ");
+	FILE *fd = NULL;
+	fd = open_dbfile("./Others/Tests/resources/db_file");
+	//printf("fd: %p\n", fd);
+	//if (!fd)
+		//fclose(fd);
+	//coordinator = create_coordinator();
+	//return_val = interpreter(coordinator);
 
-	while ((line = fgets(f_stream,MAX_LINE_LENGTH, f_stream)) != EOF)
-	{
-		read_call_record(DB, line);
+	//destroy_coordinator(coordinator);
 
-	}
-}
-
-main_loop(CDR *DB)
-{
-	
-}
-
-
-int main(int argc, char *argv)
-{
-	static CDR DB[1000000];
-
-	main_loop(DB);
 	return 0;
+
 }
